@@ -1,0 +1,32 @@
+FROM ubuntu:20.04
+
+# Apt should not ask questions during configuration
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update packages available
+RUN apt-get update
+
+# cFS dependencies
+RUN apt-get install -y cmake build-essential gcc-multilib g++-multilib
+
+# Generic dependencies needed
+RUN apt-get install -y git
+
+# Get copy of cFS
+RUN git clone --recursive https://github.com/nasa/cFS
+WORKDIR cFS
+RUN git submodule init
+RUN git submodule update
+
+RUN cp cfe/cmake/Makefile.sample Makefile
+RUN cp -r cfe/cmake/sample_defs sample_defs
+
+# We have to either modify the following file to remove a check based on the
+# user ID, or compile and install everything as a different user.
+RUN sed -ie '66s/\<if\>/\/\/ if/g' osal/src/bsp/generic-linux/src/bsp_start.c
+
+RUN make SIMULATION=native prep
+RUN make
+RUN make install
+WORKDIR build/exe/cpu1/
+CMD ./core-cpu1

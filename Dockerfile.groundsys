@@ -1,0 +1,25 @@
+FROM ubuntu:20.04
+
+# Apt should not ask questions during configuration
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update packages available
+RUN apt-get update && apt-get install -y \
+    python3 python3-pip \
+    python3-pyqt5 \
+    python3-zmq \
+    libcanberra-gtk-module \
+    git make gcc g++ libssl-dev
+
+# cFS dependencies
+RUN apt-get install -y cmake build-essential gcc-multilib g++-multilib
+
+# Generic dependencies needed
+RUN apt-get install -y git
+
+# Get copy of cFS ground system
+RUN git clone --recursive https://github.com/nasa/cFS-GroundSystem.git
+WORKDIR /cFS-GroundSystem/Subsystems/cmdUtil
+RUN make
+
+CMD ["python3", "/cFS-GroundSystem/GroundSystem.py"]
