@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 
-# Apt should not ask questions during configuration
+# Application should not ask questions during configuration
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Update packages available
@@ -18,8 +18,17 @@ RUN apt-get install -y cmake build-essential gcc-multilib g++-multilib
 RUN apt-get install -y git
 
 # Get copy of cFS ground system
-RUN git clone --recursive https://github.com/nasa/cFS-GroundSystem.git
-WORKDIR /cFS-GroundSystem/Subsystems/cmdUtil
+RUN git clone --recursive https://github.com/samiphegde/ESSCT.git
+WORKDIR /cFS/tools/cFS-GroundSystem/Subsystems/cmdUtil/
 RUN make
 
-CMD ["python3", "/cFS-GroundSystem/GroundSystem.py"]
+CMD /bin/bash -c "\
+    echo '[INFO] Starting Ground System...' && \
+    python3 /cFS/tools/cFS-GroundSystem/GroundSystem.py & \
+    echo '[INFO] Waiting for Ground System to initialize...' && \
+    sleep 5 && \
+    echo '[INFO] Running Auto Commander...' && \
+    python3 /cFS/tools/cFS-GroundSystem/Subsystems/cmdGui/auto_commander.py
+#   python3 /cFS/tools/cFS-GroundSystem/Subsystems/cmdGui/user_inp_auto_commander.py
+
+#CMD ["python3", "/cFS-GroundSystem/GroundSystem.py"]
