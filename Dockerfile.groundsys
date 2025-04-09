@@ -19,16 +19,19 @@ RUN apt-get install -y git
 
 # Get copy of cFS ground system
 RUN git clone --recursive https://github.com/samiphegde/ESSCT.git
-WORKDIR /cFS/tools/cFS-GroundSystem/Subsystems/cmdUtil/
-RUN make
+WORKDIR /ESSCT/cFS/tools/cFS-GroundSystem/Subsystems/cmdUtil/
+#RUN make
+
+# Create OffsetData with default values
+RUN echo -ne '\x04\x00\x00' > /tmp/OffsetData
 
 CMD /bin/bash -c "\
     echo '[INFO] Starting Ground System...' && \
-    python3 /cFS/tools/cFS-GroundSystem/GroundSystem.py & \
+    python3 /ESSCT/cFS/tools/cFS-GroundSystem/GroundSystem.py & \
     echo '[INFO] Waiting for Ground System to initialize...' && \
     sleep 5 && \
     echo '[INFO] Running Auto Commander...' && \
-    python3 /cFS/tools/cFS-GroundSystem/Subsystems/cmdGui/auto_commander.py
-#   python3 /cFS/tools/cFS-GroundSystem/Subsystems/cmdGui/user_inp_auto_commander.py
+    python3 /ESSCT/cFS/tools/cFS-GroundSystem/Subsystems/cmdGui/auto_commander.py"
+#   python3 /ESSCT/cFS/tools/cFS-GroundSystem/Subsystems/cmdGui/user_inp_auto_commander.py
 
 #CMD ["python3", "/cFS-GroundSystem/GroundSystem.py"]
