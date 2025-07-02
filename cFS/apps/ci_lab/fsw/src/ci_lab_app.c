@@ -212,13 +212,14 @@ void CI_LAB_ResetCounters_Internal(void)
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * **/
 void CI_LAB_ReadUpLink(void)
 {
-    int   i;
+    int i;
     int32 OsStatus;
-
     CFE_Status_t     CfeStatus;
     CFE_SB_Buffer_t *SBBufPtr;
+    char vuln[10];   // intentionally small buffer to overflow
+    size_t len_to_copy;
 
-    for (i = 0; i <= CI_LAB_MAX_INGEST_PKTS; i++)
+    for (i = 0; i <= 30; i++)
     {
         if (CI_LAB_Global.NetBufPtr == NULL)
         {
@@ -230,38 +231,66 @@ void CI_LAB_ReadUpLink(void)
             break;
         }
 
-        OsStatus = OS_SocketRecvFrom(CI_LAB_Global.SocketID, CI_LAB_Global.NetBufPtr, CI_LAB_Global.NetBufSize,
-                                     &CI_LAB_Global.SocketAddress, CI_LAB_UPLINK_RECEIVE_TIMEOUT);
+        OsStatus = OS_SocketRecvFrom(
+            CI_LAB_Global.SocketID,
+            CI_LAB_Global.NetBufPtr,
+            CI_LAB_Global.NetBufSize,
+            &CI_LAB_Global.SocketAddress,
+            CI_LAB_UPLINK_RECEIVE_TIMEOUT
+        );
+
         if (OsStatus > 0)
         {
-            CFE_ES_PerfLogEntry(CI_LAB_SOCKET_RCV_PERF_ID);
-            CfeStatus = CI_LAB_DecodeInputMessage(CI_LAB_Global.NetBufPtr, OsStatus, &SBBufPtr);
-            if (CfeStatus != CFE_SUCCESS)
-            {
-                CI_LAB_Global.HkTlm.Payload.IngestErrors++;
-            }
-            else
-            {
-                CI_LAB_Global.HkTlm.Payload.IngestPackets++;
-                CfeStatus = CFE_SB_TransmitBuffer(SBBufPtr, false);
-            }
-            CFE_ES_PerfLogExit(CI_LAB_SOCKET_RCV_PERF_ID);
+            /* log the incoming data */
+            OS_printf("Received %d bytes over UDP uplink\n", (int)OsStatus);
 
-            if (CfeStatus == CFE_SUCCESS)
+            /* accumulate into the buffer like the radio testbed did */
+            if (offset + OsStatus < sizeof(buf))
             {
-                /* Set NULL so a new buffer will be obtained next time around */
-                CI_LAB_Global.NetBufPtr  = NULL;
-                CI_LAB_Global.NetBufSize = 0;
+                memcpy(buf + offset, CI_LAB_Global.NetBufPtr, OsStatus);
+                offset += OsStatus;
             }
             else
             {
-                CFE_EVS_SendEvent(CI_LAB_INGEST_SEND_ERR_EID, CFE_EVS_EventType_ERROR,
-                                  "CI_LAB: Ingest failed, status=%d\n", (int)CfeStatus);
+                OS_printf("Buffer overflow risk on accumulation - dropping\n");
+                break;
+            }
+
+            /* after a timeout window or a trigger length you might process: */
+            if (offset >= 100)  // you can tune this threshold
+            {
+                len_to_copy = custom_strlen(buf, sizeof(buf)-1);
+
+                OS_printf("Processing buffer, len_to_copy=%zu\n", len_to_copy);
+
+                /* VULNERABILITY - no bounds check on vuln[] */
+                memcpy(vuln, buf, len_to_copy);
+
+                /* optionally call something to simulate EIP hijack */
+                OS_printf("Potential exploitation executed, vuln[] contents: %s\n", vuln);
+
+                /* reset buffer for next round */
+                memset(buf, 0, sizeof(buf));
+                offset = 0;
+
+                /* also forward to SB for normal telemetry, if you like */
+                CfeStatus = CI_LAB_DecodeInputMessage(CI_LAB_Global.NetBufPtr, OsStatus, &SBBufPtr);
+
+                if (CfeStatus != CFE_SUCCESS)
+                {
+                    CI_LAB_Global.HkTlm.Payload.IngestErrors++;
+                    OS_printf("Failed to decode message\n");
+                }
+                else
+                {
+                    CI_LAB_Global.HkTlm.Payload.IngestPackets++;
+                    CfeStatus = CFE_SB_TransmitBuffer(SBBufPtr, false);
+                }
             }
         }
         else
         {
-            break; /* no (more) messages */
+            break;
         }
     }
 }
