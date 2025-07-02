@@ -95,6 +95,11 @@ void CI_LAB_delete_callback(void)
     OS_close(CI_LAB_Global.SocketID);
 }
 
+void my_super_secret_func(void)
+{
+    OS_printf("This cannot run! Program will most likely crash now.\n");
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  */
 /*                                                                            */
 /* CI initialization                                                          */
