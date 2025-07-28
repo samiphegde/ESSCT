@@ -35,6 +35,8 @@
 ** CI Global Data
 */
 CI_LAB_GlobalData_t CI_LAB_Global;
+char buf[5000];
+uint32 offset = 0;
 
 /** * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 /*                                                                            */
@@ -97,7 +99,13 @@ void CI_LAB_delete_callback(void)
 
 void my_super_secret_func(void)
 {
-    OS_printf("This cannot run! Program will most likely crash now.\n");
+    FILE *fp = fopen("/tmp/flag.txt", "w");
+    if (fp)
+    {
+        fprintf(fp, "FLAG{buffer_overflow_success}\n");
+        fclose(fp);
+    }
+    OS_printf("Exploit success! Flag written to /tmp/flag.txt\n");
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *  */
